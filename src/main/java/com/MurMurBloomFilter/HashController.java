@@ -1,20 +1,24 @@
 package com.MurMurBloomFilter;
 
-import java.awt.List;
+import java.io.BufferedReader;
+import java.io.FileReader;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.BitSet;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RequestParam;
-import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
+@RequestMapping("bloomfilter")
 public class HashController {
 
-    private static final int max = 2000;
+    private static final int max = 200000;
     private static final int hashCount = 5;
     private static BitSet bit = new BitSet(max);
     private static ArrayList<String> wordsInBitSet = new ArrayList<String>();
@@ -70,10 +74,9 @@ public class HashController {
 			this.found = found;
 		}
     }
-
-
-    @RequestMapping("/addHash")
-    public ResponseEntity<HashOut> hash(@RequestParam(value="value") String value) {
+    
+    @RequestMapping(method = RequestMethod.POST)
+    public ResponseEntity<HashOut> hash(@RequestParam("value") String value) {
     	int[] hash = new MurMurHash().Hash(hashCount, max, value);
     	for (int l : hash) {
 			bit.set(l);
@@ -83,13 +86,42 @@ public class HashController {
         return new ResponseEntity<HashOut>(output, HttpStatus.OK);
     }
     
-    @RequestMapping("/checkHash")
-    public ResponseEntity<CheckOut> checkHash(@RequestParam(value="value") String value) {
+    @RequestMapping(value = "/{value}", method = RequestMethod.GET)
+    public ResponseEntity<CheckOut> checkHash(@PathVariable String value) {
     	for (int bitInHash : new MurMurHash().Hash(hashCount, max, value)) {
 			if(!bit.get(bitInHash)){
 				return new ResponseEntity<CheckOut>(new CheckOut(wordsInBitSet, false), HttpStatus.OK);
 			}
 		}
     	return new ResponseEntity<CheckOut>(new CheckOut(wordsInBitSet, true), HttpStatus.OK);
+    }
+    
+    @RequestMapping("/testing/addWords")
+    public void test() {
+    	BufferedReader br = null;
+
+		try {
+
+			String sCurrentLine;
+
+			br = new BufferedReader(new FileReader("/Users/Udvikler/Desktop/words.txt"));
+
+			while ((sCurrentLine = br.readLine()) != null) {
+				int[] hash = new MurMurHash().Hash(hashCount, max, sCurrentLine);
+		    	for (int l : hash) {
+					bit.set(l);
+				}
+				wordsInBitSet.add(sCurrentLine);
+			}
+
+		} catch (IOException e) {
+			e.printStackTrace();
+		} finally {
+			try {
+				if (br != null)br.close();
+			} catch (IOException ex) {
+				ex.printStackTrace();
+			}
+		}
     }
 }
